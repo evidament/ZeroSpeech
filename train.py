@@ -2,7 +2,6 @@ import argparse
 import os
 import json
 
-import numpy as np
 from tqdm import tqdm
 import torch
 import torch.nn.functional as F
@@ -11,6 +10,8 @@ from torch.utils.data import DataLoader
 
 from dataset import MelDataset
 from model import Model
+
+from pathlib import Path
 
 
 def save_checkpoint(model, optimizer, step, checkpoint_dir):
@@ -27,15 +28,7 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir):
 def train_fn(args, params):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = Model(mel_channels=params["preprocessing"]["num_mels"],
-                  encoder_channels=params["model"]["encoder_channels"],
-                  num_vq_embeddings=params["model"]["num_vq_embeddings"],
-                  vq_embedding_dim=params["model"]["vq_embedding_dim"],
-                  prenet_channels=params["model"]["prenet_channels"],
-                  num_speakers=params["model"]["num_speakers"],
-                  speaker_embedding_dim=params["model"]["speaker_embedding_dim"],
-                  decoder_channels=params["model"]["decoder_channels"],
-                  condition_channels=params["model"]["condition_channels"])
+    model = Model()
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=params["model"]["learning_rate"])
@@ -49,8 +42,7 @@ def train_fn(args, params):
     else:
         global_step = 0
 
-    dataset = MelDataset(meta_file=os.path.join(args.data_dir, "train.txt"),
-                         speakers_file=os.path.join(args.data_dir, "speakers.txt"),
+    dataset = MelDataset([Path(args.data_dir) / "unit.json", Path(args.data_dir) / "voice.json"],
                          sample_frames=params["model"]["sample_frames"])
 
     dataloader = DataLoader(dataset, batch_size=params["model"]["batch_size"],
@@ -69,7 +61,7 @@ def train_fn(args, params):
             mels, speakers = mels.to(device), speakers.to(device)
 
             output, vq_loss, perplexity = model(mels, speakers)
-            recon_loss = F.mse_loss(output, mels[:, 1:, :])
+            recon_loss = F.mse_loss(output, mels)
             loss = recon_loss + vq_loss
 
             optimizer.zero_grad()

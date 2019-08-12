@@ -9,7 +9,8 @@
         "hop_length": 200,
         "win_length": 800,
         "bits": 9,
-        "num_evaluation_utterances" : 20
+        "num_evaluation_utterances" : 20,
+        "sample_frames": 128
     },
 
     "model": {

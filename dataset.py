@@ -1,30 +1,34 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from random import randint
+import random
+import json
 
 
 class MelDataset(Dataset):
-    def __init__(self, meta_file, speakers_file, sample_frames):
+    def __init__(self, metadata_paths, sample_frames):
         self.sample_frames = sample_frames
 
-        with open(meta_file, encoding="utf-8") as f:
-            self.metadata = [line.strip().split("|") for line in f]
-        self.metadata = [m for m in self.metadata if int(m[2]) > sample_frames + 1]
+        metadata = dict()
+        for path in metadata_paths:
+            with path.open() as file:
+                metadata.update(json.load(file))
 
-        with open(speakers_file, encoding="utf-8") as f:
-            self.speakers = [line.strip() for line in f]
+        self.speakers = sorted(metadata.keys())
+
+        self.metadata = list()
+        for speaker, paths in metadata.items():
+            self.metadata.extend([(speaker, path) for path in paths])
 
     def __len__(self):
         return len(self.metadata)
 
     def __getitem__(self, index):
-        speaker_id, mel_path, _ = self.metadata[index]
+        speaker_id, path = self.metadata[index]
+        mel = np.load(path)
 
-        mel = np.load(mel_path)
-
-        pos = randint(0, len(mel) - self.sample_frames - 1)
-        mel = mel[pos:pos + self.sample_frames + 1, :]
+        pos = random.randint(0, mel.shape[0] - self.sample_frames)
+        mel = mel[pos:pos + self.sample_frames, :]
 
         speaker = self.speakers.index(speaker_id)
 
