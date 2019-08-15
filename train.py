@@ -53,35 +53,33 @@ def train_fn(args, params):
     start_epoch = global_step // len(dataloader) + 1
 
     for epoch in range(start_epoch, num_epochs + 1):
-        running_recon_loss = 0
-        running_vq_loss = 0
-        running_perplexity = 0
+        running_MSE = 0
+        running_KLD = 0
 
         for i, (mels, speakers) in enumerate(tqdm(dataloader), 1):
             mels, speakers = mels.to(device), speakers.to(device)
 
-            output, vq_loss, perplexity = model(mels, speakers)
-            recon_loss = F.mse_loss(output, mels)
-            loss = recon_loss + vq_loss
+            output, mu, logvar = model(mels, speakers)
+            MSE = F.mse_loss(output, mels, reduction="sum") / (mels.size(0) * mels.size(1))
+            KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1).mean()
+            loss = MSE + KLD
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-            running_recon_loss += recon_loss.item()
-            average_recon_loss = running_recon_loss / (i + 1)
-            running_vq_loss += vq_loss.item()
-            average_vq_loss = running_vq_loss / (i + 1)
-            running_perplexity += perplexity.item()
-            average_perplexity = running_perplexity / (i + 1)
+            running_MSE += MSE.item()
+            average_MSE = MSE / i
+            running_KLD += KLD.item()
+            average_KLD = running_KLD / i
 
             global_step += 1
 
             if global_step % params["model"]["checkpoint_interval"] == 0:
                 save_checkpoint(model, optimizer, global_step, args.checkpoint_dir)
 
-        print("epoch:{}, recon loss:{:.2E}, vq loss:{:.2E}, perpexlity:{:.3f}"
-              .format(epoch, average_recon_loss, average_vq_loss, average_perplexity))
+        print("epoch:{}, MSE loss:{:.2E}, vq loss:{:.2E}, perpexlity:{:.3f}"
+              .format(epoch, average_MSE / 80, average_KLD))
 
 
 if __name__ == "__main__":
