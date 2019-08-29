@@ -39,8 +39,10 @@ def process_wav(wav_path, audio_path, mel_path, params):
 
 
 def preprocess(wav_dirs, out_dir, num_workers, params):
+    audio_out_dir = os.path.join(out_dir, "audio")
     mel_out_dir = os.path.join(out_dir, "mels")
     os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(audio_out_dir, exist_ok=True)
     os.makedirs(mel_out_dir, exist_ok=True)
 
     executor = ProcessPoolExecutor(max_workers=num_workers)
@@ -49,7 +51,8 @@ def preprocess(wav_dirs, out_dir, num_workers, params):
     for wav_path in wav_paths:
         fid = os.path.basename(wav_path).replace(".wav", ".npy")
         mel_path = os.path.join(mel_out_dir, fid)
-        futures.append(executor.submit(partial(process_wav, wav_path, mel_path, params)))
+        audio_path = os.path.join(audio_out_dir, fid)
+        futures.append(executor.submit(partial(process_wav, wav_path, audio_path, mel_path, params)))
 
     metadata = [future.result() for future in tqdm(futures)]
     write_metadata(metadata, out_dir, params)

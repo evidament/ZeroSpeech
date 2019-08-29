@@ -82,7 +82,7 @@ class Vocoder(nn.Module):
         self.rnn1 = nn.GRU(64 + 64, 128, num_layers=2, batch_first=True, bidirectional=True)
         self.embedding = nn.Embedding(256, 256)
         self.rnn2 = nn.GRU(256 + 2 * 128, 896, batch_first=True)
-        self.fc1 = nn.Linear(256, 256)
+        self.fc1 = nn.Linear(896, 256)
         self.fc2 = nn.Linear(256, 256)
 
     def forward(self, x, mels, speakers):
