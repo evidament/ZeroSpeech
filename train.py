@@ -30,7 +30,7 @@ def train_fn(args, params):
     model = Model()
     model.to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=4e-4)
+    optimizer = optim.Adam(model.parameters(), lr=5e-5)
 
     if args.resume is not None:
         print("Resume checkpoint from: {}:".format(args.resume))

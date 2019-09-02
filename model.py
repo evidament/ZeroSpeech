@@ -32,12 +32,12 @@ class VQEmbedding(nn.Module):
                                     x_flatten, self.embedding.weight.t(),
                                     alpha=-2.0, beta=1.0)
 
-        dist = Categorical(logits=-distances)
-        samples = dist.sample((self.num_samples,))
+        indices = torch.argmin(distances, dim=-1)
+        # samples = dist.sample((self.num_samples,))
 
-        encodings = torch.zeros(samples.size(0), samples.size(1), self.num_embeddings, device=x.device)
-        encodings.scatter_(2, samples.unsqueeze(-1), 1)
-        encodings = torch.mean(encodings, dim=0)
+        encodings = torch.zeros(indices.size(0), self.num_embeddings, device=x.device)
+        encodings.scatter_(1, indices.unsqueeze(-1), 1)
+        # encodings = torch.mean(encodings, dim=0)
 
         if self.training:
             self.ema_count = self.decay * self.ema_count + (1 - self.decay) * torch.sum(encodings, dim=0)
@@ -51,8 +51,7 @@ class VQEmbedding(nn.Module):
             self.embedding.weight.data.copy_(self.ema_weight / self.ema_count.unsqueeze(1))
 
         with torch.no_grad():
-            quantized = self.embedding(samples)
-        quantized = torch.mean(quantized, dim=0)
+            quantized = self.embedding(indices)
         quantized = quantized.view_as(x)
 
         e_latent_loss = F.mse_loss(x, quantized.detach())
@@ -70,16 +69,22 @@ class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv1d(80, 512, 5, 1, 2, bias=False),
-            nn.BatchNorm1d(512),
+            nn.Conv1d(80, 786, 3, 1, 2, bias=False),
+            nn.BatchNorm1d(786),
             nn.ReLU(True),
-            nn.Conv1d(512, 512, 5, 1, 2, bias=False),
-            nn.BatchNorm1d(512),
+            nn.Conv1d(786, 786, 3, 1, 2, bias=False),
+            nn.BatchNorm1d(786),
             nn.ReLU(True),
-            nn.Conv1d(512, 512, 5, 1, 2, bias=False),
-            nn.BatchNorm1d(512),
+            nn.Conv1d(786, 786, 3, 1, 2, bias=False),
+            nn.BatchNorm1d(786),
             nn.ReLU(True),
-            nn.Conv1d(512, 64, 1)
+            nn.Conv1d(786, 786, 3, 1, 2, bias=False),
+            nn.BatchNorm1d(786),
+            nn.ReLU(True),
+            nn.Conv1d(786, 786, 3, 1, 2, bias=False),
+            nn.BatchNorm1d(786),
+            nn.ReLU(True),
+            nn.Conv1d(786, 64, 1)
         )
 
     def forward(self, mels):
@@ -104,7 +109,7 @@ class Vocoder(nn.Module):
         self.hop_length = 200
 
         self.speaker_embedding = nn.Embedding(102, 64)
-        self.rnn1 = nn.GRU(64 + 64, 128, num_layers=2, batch_first=True, bidirectional=True)
+        self.rnn1 = nn.LSTM(64 + 64, 128, num_layers=2, batch_first=True, bidirectional=True)
         self.embedding = nn.Embedding(256, 256)
         self.rnn2 = nn.GRU(256 + 2 * 128, 896, batch_first=True)
         self.fc1 = nn.Linear(896, 256)
