@@ -1,7 +1,7 @@
 # VQ-VAE for Acoustic Unit Discovery and Voice Conversion
 
 Train and evaluate models for the ZeroSpeech challenges.
-Voice conversion samples can be found here.
+Voice conversion samples can be found [here](https://bshall.github.io/ZeroSpeech/).
 
 <p align="center">
   <img width="384" height="563" alt="VQ-VAE for Acoustic Unit Discovery"
