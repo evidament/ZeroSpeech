@@ -1,10 +1,12 @@
 import argparse
-from pathlib import Path
 import json
+from pathlib import Path
+
 import numpy as np
 import torch
-from model import Model
 from tqdm import tqdm
+
+from model import Model
 
 
 def encode_dataset(args, params):
@@ -33,21 +35,18 @@ def encode_dataset(args, params):
     out_dir = Path(args.out_dir)
     out_dir.mkdir(exist_ok=True, parents=True)
 
-    hop_length_seconds = params["preprocessing"]["hop_length"] / params["preprocessing"]["sample_rate"]
-
     in_dir = Path(args.in_dir)
     for path in tqdm(in_dir.rglob("*.mel.npy")):
         mel = torch.from_numpy(np.load(path)).unsqueeze(0).to(device)
         with torch.no_grad():
-            x = model.encoder(mel)
-            x, _, _ = model.codebook(x)
+            z = model.encode(mel)
 
-        output = x.squeeze().cpu().numpy()
-        time = np.linspace(0, (mel.size(-1) - 1) * hop_length_seconds, len(output))
-        relative_path = path.relative_to(in_dir).with_suffix("")
-        out_path = out_dir / relative_path
+        output = z.squeeze().cpu().numpy()
+        out_path = out_dir / path.stem
         out_path.parent.mkdir(exist_ok=True, parents=True)
-        np.savez(out_path.with_suffix(".npz"), features=output, time=time)
+
+        with open(out_path.with_suffix(".txt"), "w") as file:
+            np.savetxt(file, output)
 
 
 if __name__ == "__main__":

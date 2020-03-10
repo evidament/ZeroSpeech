@@ -45,8 +45,9 @@ def train_fn(args, params):
                   hop_length=params["preprocessing"]["hop_length"],
                   jitter=params["model"]["codebook"]["jitter"])
     model.to(device)
+    print(model)
 
-    optimizer = optim.Adam(model.parameters(), lr=params["training"]["learning_rate"])
+    optimizer = optim.Adam(model.parameters(), lr=params["training"]["learning_rate"], eps=1e-4)
 
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
 
@@ -60,14 +61,16 @@ def train_fn(args, params):
     else:
         global_step = 0
 
+    print(optimizer.state_dict()["param_groups"])
+
     dataset = SpeechDataset(root=args.data_dir,
-                            sample_frames=params["training"]["sample_frames"],
                             hop_length=params["preprocessing"]["hop_length"],
-                            sample_rate=params["preprocessing"]["sample_rate"])
+                            sample_rate=params["preprocessing"]["sample_rate"],
+                            sample_frames=params["training"]["sample_frames"])
 
     dataloader = DataLoader(dataset, batch_size=params["training"]["batch_size"],
                             shuffle=True, num_workers=args.num_workers,
-                            pin_memory=True)
+                            pin_memory=True, drop_last=True)
 
     num_epochs = params["training"]["num_steps"] // len(dataloader) + 1
     start_epoch = global_step // len(dataloader) + 1
@@ -86,6 +89,9 @@ def train_fn(args, params):
             with amp.scale_loss(loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
 
+            # for name, param in model.named_parameters():
+            #     if param.requires_grad:
+            #         print("name {}: {}".format(name, torch.max(param.grad.abs())))
             torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), 1)
             optimizer.step()
 

@@ -37,7 +37,7 @@ class VQEmbeddingEMA(nn.Module):
         self.epsilon = epsilon
 
         bound = 1 / num_embeddings
-        embedding = torch.zeros(num_embeddings, embedding_dim)
+        embedding = torch.Tensor(num_embeddings, embedding_dim)
         embedding.uniform_(-bound, bound)
         self.register_buffer("embedding", embedding)
         self.register_buffer("ema_count", torch.zeros(num_embeddings))
@@ -209,6 +209,12 @@ class Model(nn.Module):
             mels = self.jitter(mels)
         mels = self.decoder(x, mels, speakers)
         return mels, loss, perplexity
+
+    def encode(self, mel):
+        mel = self.encoder(mel)
+        z, _, _ = self.codebook(mel)
+        # z = mel.transpose(1, 2)
+        return z
 
     def generate(self, mel, speaker):
         self.eval()

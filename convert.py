@@ -1,6 +1,5 @@
 import argparse
 import json
-import csv
 from pathlib import Path
 import torch
 import numpy as np
@@ -12,13 +11,11 @@ from tqdm import tqdm
 def convert(args, params):
     data_dir = Path(args.data_dir)
 
-    with open(data_dir / "speakers.csv") as file:
-        reader = csv.reader(file)
-        speakers = sorted([speaker for speaker, in reader])
+    with open(data_dir / "speakers.json") as file:
+        speakers = sorted(json.load(file))
 
     with open(args.synthesis_list) as file:
-        reader = csv.reader(file)
-        synthesis_list = [(data_dir.parent / mel_path, speaker) for mel_path, speaker in reader]
+        synthesis_list = [(data_dir.parent / mel_path, speaker) for mel_path, speaker in json.load(file)]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

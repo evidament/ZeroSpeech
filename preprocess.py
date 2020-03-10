@@ -3,7 +3,6 @@ from pathlib import Path
 import librosa
 import scipy
 import json
-import csv
 import numpy as np
 from multiprocessing import cpu_count
 from concurrent.futures import ProcessPoolExecutor
@@ -57,13 +56,14 @@ def preprocess(args, params):
     executor = ProcessPoolExecutor(max_workers=args.num_workers)
     futures = []
     with open(args.split_path) as file:
-        reader = csv.reader(file)
-        for in_path, start, duration, out_path in reader:
+        metadata = json.load(file)
+        for in_path, start, duration, out_path in metadata:
             wav_path = in_dir / in_path
             out_path = out_dir / out_path
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            futures.append(executor.submit(partial(process_wav, wav_path, out_path, params,
-                                                   float(start), float(duration))))
+            futures.append(executor.submit(
+                partial(process_wav, wav_path,
+                        out_path, params, start, duration)))
 
     results = [future.result() for future in tqdm(futures)]
 
