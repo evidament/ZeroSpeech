@@ -39,14 +39,26 @@ def encode_dataset(args, params):
     for path in tqdm(in_dir.rglob("*.mel.npy")):
         mel = torch.from_numpy(np.load(path)).unsqueeze(0).to(device)
         with torch.no_grad():
-            z = model.encode(mel)
+            z, indices = model.encode(mel)
 
-        output = z.squeeze().cpu().numpy()
-        out_path = out_dir / path.stem
+        z = z.squeeze().cpu().numpy()
+        relative_path = path.relative_to(in_dir)
+        relative_path = relative_path.with_suffix("")
+        out_path = out_dir / relative_path
         out_path.parent.mkdir(exist_ok=True, parents=True)
 
         with open(out_path.with_suffix(".txt"), "w") as file:
-            np.savetxt(file, output)
+            np.savetxt(file, z)
+
+        if args.save_mean:
+            mean = np.mean(z, 0)
+            with open(out_path.with_suffix(".mean.txt"), "w") as file:
+                np.savetxt(file, mean)
+
+        if args.save_indices:
+            indices = indices.squeeze().cpu().numpy()
+            with open(out_path.with_suffix(".index.txt"), "w") as file:
+                np.savetxt(file, indices, fmt="%i")
 
 
 if __name__ == "__main__":
@@ -54,8 +66,9 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, help="Checkpoint path to resume")
     parser.add_argument("--in-dir", type=str, help="Directory to encode")
     parser.add_argument("--out-dir", type=str, help="Output path")
+    parser.add_argument("--save-mean", action="store_true")
+    parser.add_argument("--save-indices", action="store_true")
     args = parser.parse_args()
     with open("config.json") as file:
         params = json.load(file)
     encode_dataset(args, params)
-

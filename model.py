@@ -5,6 +5,7 @@ from torch.distributions import Categorical
 import numpy as np
 from tqdm import tqdm
 from preprocess import mulaw_decode
+import math
 
 
 class Jitter(nn.Module):
@@ -36,7 +37,7 @@ class VQEmbeddingEMA(nn.Module):
         self.decay = decay
         self.epsilon = epsilon
 
-        bound = 1 / num_embeddings
+        bound = 1 / 512
         embedding = torch.Tensor(num_embeddings, embedding_dim)
         embedding.uniform_(-bound, bound)
         self.register_buffer("embedding", embedding)
@@ -44,6 +45,7 @@ class VQEmbeddingEMA(nn.Module):
         self.register_buffer("ema_weight", self.embedding.clone())
 
     def forward(self, x):
+        B, C, T = x.size()
         M, D = self.embedding.size()
 
         x = x.transpose(1, 2)
@@ -78,7 +80,7 @@ class VQEmbeddingEMA(nn.Module):
         avg_probs = torch.mean(encodings, dim=0)
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
-        return quantized, loss, perplexity
+        return quantized, loss, perplexity, indices.view(B, T)
 
 
 class Encoder(nn.Module):
@@ -204,7 +206,7 @@ class Model(nn.Module):
 
     def forward(self, x, mels, speakers):
         mels = self.encoder(mels)
-        mels, loss, perplexity = self.codebook(mels)
+        mels, loss, perplexity, _ = self.codebook(mels)
         if self.jitter is not None:
             mels = self.jitter(mels)
         mels = self.decoder(x, mels, speakers)
@@ -212,15 +214,15 @@ class Model(nn.Module):
 
     def encode(self, mel):
         mel = self.encoder(mel)
-        z, _, _ = self.codebook(mel)
+        z, _, _, indices = self.codebook(mel)
         # z = mel.transpose(1, 2)
-        return z
+        return z, indices
 
     def generate(self, mel, speaker):
         self.eval()
         with torch.no_grad():
             mel = self.encoder(mel)
-            mel, _, perplexity = self.codebook(mel)
+            mel, _, _, _ = self.codebook(mel)
             output = self.decoder.generate(mel, speaker)
         self.train()
         return output

@@ -47,7 +47,7 @@ def train_fn(args, params):
     model.to(device)
     print(model)
 
-    optimizer = optim.Adam(model.parameters(), lr=params["training"]["learning_rate"], eps=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=params["training"]["learning_rate"])
 
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
 
